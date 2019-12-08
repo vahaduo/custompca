@@ -500,7 +500,7 @@ https://github.com/vahaduo/
         switchIt("y", dimY);
         currentDimY = dimY;
       }
-      Plotly.react('graphDiv', traces , new layout, {showSendToCloud: false, responsive: true});
+      Plotly.newPlot('graphDiv', traces , new layout, {showSendToCloud: false, responsive: true});
       clearFlip();
     }
     
