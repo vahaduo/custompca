@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+<!--
+https://github.com/vahaduo/
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vahaduo: Custom PCA</title>
+  <script src="https://www.lactame.com/lib/ml/4.0.0/ml.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0px;
+      background-color: #555;
+      font-size: calc(0.5vw + 12px);
+      font-family: sans-serif;
+      color: #dadada;
+    }
+    nav {
+      width: 100%;
+      background-color: #ccc;
+      background-image: linear-gradient(#ccc, #ddd);
+      padding-top: 0.4em;
+      padding-left: 0.4em;
+      box-sizing: border-box;
+    }
+    button {
+      outline: none;
+      border: none;
+      margin: 0px;
+      cursor: pointer;
+      color: inherit;
+    }
+    .tablink {
+      text-transform: uppercase;
+      padding: 0.5em;
+      font-size: 1em;
+      line-height: 1.4;
+      background-color: #555;
+    }
+    .inactive {
+      background: none;
+      color: #666;
+    }
+    .inactive:focus, .inactive:hover {
+      background-color: #999;
+    }
+    .buttons:focus, .buttons:hover {
+      background-image: linear-gradient(#444, #525252);
+    }
+    .buttons:active {
+      color: #555;
+      background-color: #999;
+      background-image: none;
+    }
+    .buttons, .buttons:disabled {
+      box-sizing: border-box;
+      border: none;
+      padding: 0.7em;
+      font-size: 0.7em;
+      color: inherit;
+      text-transform: uppercase;
+      background-color: #444;
+      box-shadow: 2px 2px #333;
+      background-image: none;
+    }
+    .pcaoptions {
+      display: none;
+    }
+    .tabinput {
+      box-sizing: border-box;
+      border: none;
+      margin: 0px;
+      outline: 0px;
+      padding: 1em;
+      height: calc(100% - 4em);
+      min-height: 4em;
+      width: 100%;
+      overflow: auto;
+      resize: none;
+      color: inherit;
+      font-size: 0.7em;
+      white-space: pre;
+      background: none;
+      box-shadow: 0 3px #333;
+    }
+    #notification {
+      font-size: 0.7em;
+      box-sizing: border-box;
+      margin: 0.7em;
+      padding: 0.5em;
+      width: calc(100%-1.4em);
+      cursor: pointer;
+      display: none;
+    }
+    #notification::before {
+      content: "×";
+      font-weight: bold;
+      margin-right: 1em;
+    }
+    #graphDiv {
+      min-height: calc(100vh - 6.5rem);
+      box-sizing: border-box;
+      margin-top: 0.7em;
+    }
+    .js-plotly-plot {
+      box-shadow: 0 -0.2em 0.2em #666, 0 1em #222;
+      background-color: #222;
+    }
+    .modebar {
+      right: 1em !important;
+    }
+    .buttonpca {
+      min-width: 15em;
+      margin: 1em 0 0 1em;
+    }
+    .buttongroup {
+      display: none;
+    }
+    .pcleft {
+      width: 5em;
+      margin: 1em 0 0 1em;
+    }
+    .pcright {
+      width: 5em;
+      margin: 1em 0 0 0;
+    }
+  </style>
+  <script>
+    let projectSources = true, flipX = false, flipY = false,
+      dimensions = 2, dimX = 1, dimY = 2, pcaDataHasChanged = true, 
+      traces = [], currentDimX = dimX, currentDimY = dimY;
+    const tabNames = {"source": "source", "projected": "projected", "pcadata": "pca data"};
+    
+    function showNotification (message, error = 0) {
+      const notification = document.getElementById("notification");
+      notification.innerHTML = message;
+      notification.style.display = "block";
+      if (error) {
+        notification.style.backgroundColor = "red";
+        notification.style.color = "white";
+      } else {
+        notification.style.backgroundColor = "yellow";
+        notification.style.color = "#666";
+      }
+    }
+    
+    function clearNotification () {
+      const elmnt = document.getElementById("notification");
+      elmnt.innerHTML = "";
+      elmnt.style.display = "none";
+      window.dispatchEvent(new Event('resize'));
+    }
+    
+    function updateXYPC () {
+      document.getElementById("optX").firstElementChild.innerHTML = "X:&nbsp;PC" + dimX;
+      document.getElementById("optY").firstElementChild.innerHTML = "Y:&nbsp;PC" + dimY;
+    }
+    
+    function switchXYPC () {
+      if (dimX == 1) {
+        dimX = 2; dimY = 1;
+      } else {
+        dimX = 1; dimY = 2;
+      }
+    }
+    
+    function toggleOptions (option, elmnt) {
+      let msg;
+      
+      function toggleOption (currentValue, msg, msg2 = ["no", "yes"]) {
+        if (currentValue) {
+          elmnt.innerHTML = msg + msg2[0];
+        } else {
+          elmnt.innerHTML = msg + msg2[1];
+        }
+      }
+      
+      switch (option) {
+        case "projectSources":
+          toggleOption(projectSources, "project&nbsp;sources&nbsp;-&nbsp;");
+          projectSources = !projectSources;
+          break;
+        case "flipX":
+          toggleOption(flipX, "flip", ["", "&nbsp;&#10004;"]);
+          flipX = !flipX;
+          break;
+        case "flipY":
+          toggleOption(flipY, "flip", ["", "&nbsp;&#10004;"]);
+          flipY = !flipY;
+          break;
+        case "incDimX":
+          dimX == dimensions ? dimX = 1 : dimX++;
+          if (dimY == dimX) dimX == dimensions ? dimX = 1 : dimX++;
+          if (dimensions == 2) switchXYPC();
+          updateXYPC();
+          break;
+        case "decDimX":
+          dimX == 1 ? dimX = dimensions : dimX--;
+          if (dimY == dimX) dimX == 1 ? dimX = dimensions : dimX--;
+          if (dimensions == 2) switchXYPC();
+          updateXYPC();
+          break;
+        case "incDimY":
+          dimY == dimensions ? dimY = 1 : dimY++;
+          if (dimY == dimX) dimY == dimensions ? dimY = 1 : dimY++;
+          if (dimensions == 2) switchXYPC();
+          updateXYPC();
+          break;
+        case "decDimY":
+          dimY == 1 ? dimY = dimensions : dimY--;
+          if (dimY == dimX) dimY == 1 ? dimY = dimensions : dimY--;
+          if (dimensions == 2) switchXYPC();
+          updateXYPC();
+          break;
+      }
+    }
+    
+    function textareaToArray (textareaId) {
+      let i, j, m, n, text1, text2, diff12, text3, diff23, 
+        text4, diff34, lines, columnNum, result = {lines: [], message: "", errors: 0};
+      const textarea = document.getElementById(textareaId);
+      textareaId = tabNames[textareaId].toUpperCase();
+      text1 = textarea.value.trim().replace(/\r\n/g,"\n").replace(/\"/g,"").replace(/\</g, "&lt;").replace(/\>/g, "&gt;");
+      text2 = text1.replace(/[^\S\n]/g, "");
+      diff12 = text1.length - text2.length;
+      if (diff12 > 0) {
+        result.message += "WARNING! Number of white-space characters removed in " + textareaId + " data: "+diff12+". ";
+      }
+      text3 = text2.replace(/\n+/g, "\n");
+      diff23 = text2.length - text3.length;
+      if (diff23 > 0) {
+        result.message += "WARNING! Number of empty lines removed in " + textareaId + " data: " + diff23 + ". ";
+      }
+      text4 = text3.replace(/\,+/g, "\,");
+      diff34 = text3.length - text4.length;
+      if (diff34 > 0) {
+        result.message += "ERROR! Number of missing values in " + textareaId + " data: " + diff34 + ". ";
+        result.errors = 1;
+        result.lines = false;
+        return result;
+      }
+      result.lines = text4.split("\n");
+      columnNum = result.lines[0].split(",").length;
+      if (columnNum === 1) {
+        result.message += "ERROR! Data load error in " + textareaId + ". ";
+        result.errors = 1;
+        result.lines = false;
+        return result;
+      }
+      if (columnNum === 2) {
+        result.message += "ERROR! Data in " + textareaId + " is one-dimensional. ";
+        result.errors = 1;
+        result.lines = false;
+        return result;
+      }
+      for (i = 0, n = result.lines.length; i < n; i++) {
+        result.lines[i] = result.lines[i].split(",");
+        if (result.lines[i].length !== columnNum) {
+          result.message += "ERROR! Variable column number in " + textareaId + " data. ";
+          result.errors = 1;
+          result.lines = false;
+          return result;
+        }
+        for (j = 1, m = result.lines[i].length; j < m; j++) {
+          if (isNaN(result.lines[i][j])) {
+            result.message += "ERROR! Non-numerical value detected in " + textareaId + " data. ";
+            result.errors = 1;
+            result.lines = false;
+            return result;
+          }
+        }
+      }
+      for (i = 0, n = result.lines.length; i < n; i++) {
+        for (j = 1; j < columnNum; j++) {
+          result.lines[i][j] = Number(result.lines[i][j]);
+        }
+      }
+      return result;
+    }
+
+    function runPCA () {
+      let errors = 0, message = "", sourceArray = false, projectedArray = false, 
+        taTAsource, taTAprojected;
+      const projectedLen = document.getElementById("projected").value.length;
+      taTAsource = textareaToArray("source");
+      sourceArray = taTAsource.lines;
+      message += taTAsource.message;
+      errors += taTAsource.errors;
+      if (projectedLen > 0) {
+        taTAprojected = textareaToArray("projected");
+        projectedArray = taTAprojected.lines;
+        message += taTAprojected.message;
+        errors += taTAprojected.errors;
+      }
+      if (errors) {
+        showNotification(message, 1);
+        return;
+      } else if (projectedArray && sourceArray[0].length !== projectedArray[0].length) {
+        message += "ERROR! Column number mismatch between SOURCE and PROJECTED tabs. ";
+        showNotification(message, 1);
+        return;
+      } else {
+        if (!projectedArray && !projectSources) {
+          message += "WARNING! Empty PROJECTED tab. PROJECT SOURCES switched to YES. ";
+          document.getElementById("projectsources").click();
+        }
+        let projectedNames = [], i, n, tempLine;
+          if (projectedArray) {
+            for (i = 0, n = projectedArray.length; i < n; i++) {
+              projectedNames.push(projectedArray[i][0]);
+              projectedArray[i].shift();
+            }
+          } else {
+            projectedArray = [];
+          }
+          if (projectSources) {
+            for (i = 0, n = sourceArray.length; i < n; i++) {
+              projectedNames.push(sourceArray[i][0]);
+              sourceArray[i].shift();
+              projectedArray.push(sourceArray[i]);
+            }
+          } else {
+            for (i = 0, n = sourceArray.length; i < n; i++) {
+              sourceArray[i].shift();
+            }
+          }
+        const pca = new ML.PCA(sourceArray);
+        const variance = pca.getExplainedVariance();
+        let componentsNum = 1, totalVariance = 0;
+        if (pca.U.columns > 1 && !isNaN(variance[0]) && variance[0] < 1) {
+          for (i = 0, n = variance.length; i < n; i++) {
+            totalVariance += variance[i];
+            if (totalVariance < 0.98) {
+              componentsNum++;
+            } else {
+              break;
+            }
+          }
+          if (componentsNum > 1) {
+            const projected = pca.predict(projectedArray);
+            let msg = "", j;
+            for (i = 0, n = projected.rows; i < n; i++) {
+              msg += projectedNames[i];
+              for (j = 0; j < componentsNum; j++) {
+                msg += "," + (projected.data[i][j]).toFixed(6);
+              }
+              msg += "\n";
+            }
+            document.getElementById("pcadata").value = msg;
+            hasPCAdataChanged(true);
+          } else {
+            message += "ERROR! Not enough data to perform PCA. ";
+            showNotification(message, 1);
+            return;
+          }
+        } else {
+          message += "ERROR! Not enough data to perform PCA. ";
+          showNotification(message, 1);
+          return;
+        }
+        clearNotification();
+        if (message.length > 0) {
+          showNotification(message);
+        }
+      }
+    }
+    
+    function setOptDisp (display) {
+      document.getElementById("optX").style.display = display;
+      document.getElementById("optY").style.display = display;
+    }
+    
+    function hasPCAdataChanged(yesno) {
+      pcaDataHasChanged = yesno;
+      setOptDisp(yesno ? "none" : "inline-block");
+    }
+    
+    function plotPCA () {
+      let i, j, m, n, currentName;
+      const plotlyMarkers = [
+        [0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],
+        [10,6],[11,6],[12,6],[13,6],[14,6],[15,6],[16,6],[17,6],[18,6],[19,6],
+        [20,6],[21,6],[22,6],[23,6],[24,6],[25,6],[26,6],[27,6],/*[28,6],*/[29,6],
+        /*[30,6],*/[31,6],/*[32,6],[33,6],[34,6],[35,6],[36,6],[37,6],[38,6],[39,6],
+        [40,6],[41,6],[42,6],[43,6],[44,6],*/[100,6],[101,6],[102,6],[103,6],[104,6],
+        [105,6],[106,6],[107,6],[108,6],[109,6],[110,6],[111,6],[112,6],[113,6],[114,6],
+        [115,6],[116,6],[117,6],[118,6],[119,6],[120,6],[121,6],[122,6],[123,6],[124,6],
+        [125,6],[126,6],[127,6],[128,6],[129,6],[130,6],[131,6],[132,6],[133,6],[134,6],
+        [135,6],[136,6],[137,6],[138,6],[139,6],[140,6],[141,6],[142,6],[143,6],[144,6],
+        [200,6],[201,6],[202,6],[203,6],[204,6],[205,6],[206,6],[207,6],[208,6],[209,6],
+        [210,6],[211,6],[212,6],[213,6],[214,6],[215,6],[216,6],[217,6],[218,6],[219,6],
+        [220,6],[221,6],[222,6],[223,6],[224,6],/*[236,6],*/[300,6],[301,6],[302,6],[303,6],
+        [304,6],[305,6],[306,6],[307,6],[308,6],[309,6],[310,6],[311,6],[312,6],[313,6],
+        [314,6],[315,6],[316,6],[317,6],[318,6],[319,6],[320,6],[321,6],[322,6],[323,6],
+        [324,6],[336,6]
+      ];
+      
+      function clearFlip () {
+        if (flipX) document.getElementById("flipX").click();
+        if (flipY) document.getElementById("flipY").click();
+      }
+      
+      function layout () {
+        this.xaxis = { zeroline: false };
+        this.yaxis = { zeroline: false };
+        this.hovermode = "closest";
+        this.dragmode = "pan";
+        this.legend = { font: { size: 10, color: "#ddd" } };
+        this.paper_bgcolor = "#222";
+        this.plot_bgcolor = "#222";
+        this.font = { size: 10, color: "#808080" };
+        this.margin = { l: 50, t: 20, b:20 };
+      }
+      
+      function trace (name, marker, dimensions) {
+        this.text = [];
+        this.x = [];
+        this.y = [];
+        this.mode = "markers";
+        this.type = "scatter";
+        this.name = name;
+        this.marker = { size: marker[1], symbol: marker[0], opacity: 1 };
+        this.storePCAdata = Array(dimensions);
+        for (let i = 0; i < dimensions; i++) {
+          this.storePCAdata[i] = [];
+        }
+      }
+      
+      function addToTrace (currentTrace, point) {
+        let i, n;
+        currentTrace.text.push(point[0]);
+        for (i = 0, n = currentTrace.storePCAdata.length; i < n; i++) {
+          currentTrace.storePCAdata[i].push(point[i + 1]);
+        }
+      }
+      
+      function flipIt (dim) {
+        dim--;
+        for (let i in traces) {
+          for (let j in traces[i].storePCAdata[dim]) {
+            traces[i].storePCAdata[dim][j] *= -1;
+          }
+        }
+      }
+      
+      function switchIt (which, dim) {
+        dim--;
+        for (let i in traces) {
+          traces[i][which] = traces[i].storePCAdata[dim];
+        }
+      }
+      
+      if (pcaDataHasChanged) {
+        traces = [];
+        let taTApcadata = textareaToArray("pcadata");
+        if (taTApcadata.errors > 0) {
+          showNotification(taTApcadata.message, 1);
+          setOptDisp("none");
+          Plotly.purge("graphDiv");
+          document.getElementById("graphDiv").classList.remove("js-plotly-plot");
+          return;
+        }
+        setOptDisp("inline-block");
+        clearFlip();
+        dimX = 1;
+        dimY = 2;
+        updateXYPC();
+        dimensions = taTApcadata.lines[0].length - 1;
+        taTApcadata.lines.sort(function(a, b) {
+          return a[0] > b[0];
+        });
+        for (i = 0, n = taTApcadata.lines.length, j = 0, m = plotlyMarkers.length; i < n; i++, j++) {
+          if (j == m) j = 0;
+          let newTrace = new trace(taTApcadata.lines[i][0].split(":")[0], plotlyMarkers[j], dimensions);
+          addToTrace(newTrace, taTApcadata.lines[i]);
+          while (i + 1 < n && newTrace.name == taTApcadata.lines[i + 1][0].split(":")[0]) {
+            i++;
+            addToTrace(newTrace, taTApcadata.lines[i]);
+          }
+          newTrace.x = newTrace.storePCAdata[0];
+          newTrace.y = newTrace.storePCAdata[1];
+          traces.push(newTrace);
+        }
+        clearNotification();
+        if (taTApcadata.message.length > 0) {
+          showNotification(taTApcadata.message);
+        }
+        hasPCAdataChanged(false);
+      }
+      if (flipX) flipIt(dimX);
+      if (flipY) flipIt(dimY);
+      if (currentDimX != dimX) {
+        switchIt("x", dimX);
+        currentDimX = dimX;
+      }
+      if (currentDimY != dimY) {
+        switchIt("y", dimY);
+        currentDimY = dimY;
+      }
+      Plotly.react('graphDiv', traces , new layout, {showSendToCloud: false, responsive: true});
+      clearFlip();
+    }
+    
+    function openTab (tabid, button) {
+      let i, n;
+      const tabs = document.getElementsByClassName("tab"), 
+        tablinks = document.getElementsByClassName("tablink");
+      for (i = 0, n = tabs.length; i < n; i++) {
+        tabs[i].style.display = "none";
+      }
+      for (i = 0, n = tablinks.length; i < n; i++) {
+        tablinks[i].classList.add("inactive");
+      }
+      document.getElementById(tabid).style.display = "block";
+      document.getElementById(tabid).focus();
+      button.classList.remove("inactive");
+    }
+    
+    function initialize () {
+      document.getElementById("defaulttab").click(); 
+    }
+    
+  </script>
+</head>
+<body>
+  <nav>
+    <button class="tablink" onclick="openTab('source', this)" id="defaulttab">source</button><!--
+    --><button class="tablink" onclick="openTab('projected', this)">projected</button><!--
+    --><button class="tablink" onclick="openTab('pcadata', this)">pca&nbsp;data</button><!--
+    --><button class="tablink" onclick="openTab('pcaplot', this)">pca&nbsp;plot</button>
+  </nav>
+  <div id="notification" onclick="clearNotification()"></div>
+  <textarea class="tab tabinput" id="source" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header."></textarea>
+  <textarea class="tab tabinput" id="projected" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header."></textarea>
+  <textarea onchange="hasPCAdataChanged(true)" class="tab tabinput" id="pcadata" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header."></textarea>
+  <div class="tab" id="pcaplot">
+    <button id="projectsources" class="buttons buttonpca" onclick="toggleOptions('projectSources', this)">project&nbsp;sources&nbsp;-&nbsp;yes</button><!--
+    --><button class="buttons buttonpca" onclick="runPCA()">run&nbsp;pca</button><!--
+      --><div id="optX" class="buttongroup"><!--
+        --><button class="buttons pcleft" onclick="" disabled="true">X:&nbsp;PC1</button><!--
+        --><button id="flipX" class="buttons pcright" onclick="toggleOptions('flipX', this)">flip</button><!--
+        --><button class="buttons pcright" onclick="toggleOptions('decDimX', this)">-</button><!--
+        --><button class="buttons pcright" onclick="toggleOptions('incDimX', this)">+</button><!--
+      --></div><!--
+        --><div id="optY" class="buttongroup"><!--
+        --><button class="buttons pcleft" onclick="" disabled="true">Y:&nbsp;PC2</button><!--
+        --><button id="flipY" class="buttons pcright" onclick="toggleOptions('flipY', this)">flip</button><!--
+        --><button class="buttons pcright" onclick="toggleOptions('decDimY', this)">-</button><!--
+        --><button class="buttons pcright" onclick="toggleOptions('incDimY', this)">+</button><!--
+      --></div><!--
+    --><button class="buttons buttonpca" onclick="plotPCA()">plot&nbsp;pca</button>
+    <div id="graphDiv"></div>
+  </div>
+  <script>
+    initialize();
+  </script>
+</body>
+</html>
