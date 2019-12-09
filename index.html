@@ -470,7 +470,7 @@ https://github.com/vahaduo/
         updateXYPC();
         dimensions = taTApcadata.lines[0].length - 1;
         taTApcadata.lines.sort(function(a, b) {
-          return a[0] > b[0];
+          return a[0].localeCompare(b[0]);
         });
         for (i = 0, n = taTApcadata.lines.length, j = 0, m = plotlyMarkers.length; i < n; i++, j++) {
           if (j == m) j = 0;
