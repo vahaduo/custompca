@@ -6,6 +6,7 @@ https://github.com/vahaduo/
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Run PCA analysis, project samples onto predefined space and create interactive PCA plots.">
   <title>Vahaduo: Custom PCA</title>
   <script src="https://www.lactame.com/lib/ml/4.0.0/ml.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -132,7 +133,40 @@ https://github.com/vahaduo/
     let projectSources = true, flipX = false, flipY = false,
       dimensions = 2, dimX = 1, dimY = 2, pcaDataHasChanged = true, 
       traces = [], currentDimX = dimX, currentDimY = dimY;
-    const tabNames = {"source": "source", "projected": "projected", "pcadata": "pca data"};
+    const tabNames = {"source": "source", "projected": "projected", "pcadata": "pca data"},
+    	plotOptions = {
+    		showSendToCloud: false,
+    		responsive: true,
+    		toImageButtonOptions: {
+				format: 'png',
+				filename: 'Vahaduo_Custom_PCA',
+				height: 1200,
+				width: 1600,
+				scale: 1
+			},
+			modeBarButtonsToAdd: [
+			  {
+			    name: 'Download plot as png (custom size)',
+			    icon: Plotly.Icons.camera,
+			    click: function(gd) {
+			    	let scene = document.getElementById('graphDiv'), 
+			    		saveSize = prompt("Please enter plot size in px (width x height)", Math.round(scene.clientWidth) + " x " + Math.round(scene.clientHeight));
+			    	if (saveSize != null) {
+			    		saveSize = saveSize.split("x");
+			    		if (saveSize.length == 2) {
+				    		saveSize[0] = Number(saveSize[0].trim());
+				    		saveSize[1] = Number(saveSize[1].trim());
+				    		if (Number.isInteger(saveSize[0]) &&  saveSize[0] > 1 && Number.isInteger(saveSize[1]) &&  saveSize[1] > 1 ) {
+				    			Plotly.downloadImage('graphDiv',{format:'png',height:saveSize[1],width:saveSize[0],filename:'Vahaduo_Custom_PCA',scale:1});
+				    			return;
+				    		}
+			    		}
+			    		alert("Input not in 'width x height' format.");
+			    	}
+			    }
+			  }
+			],
+    	};
     
     function showNotification (message, error = 0) {
       const notification = document.getElementById("notification");
@@ -421,6 +455,7 @@ https://github.com/vahaduo/
         this.y = [];
         this.mode = "markers";
         this.type = "scatter";
+        this.hoverinfo = "text+name";
         this.name = name;
         this.marker = { size: marker[1], symbol: marker[0], opacity: 1 };
         this.storePCAdata = Array(dimensions);
@@ -452,7 +487,14 @@ https://github.com/vahaduo/
           traces[i][which] = traces[i].storePCAdata[dim];
         }
       }
-      
+
+	  function getArraySum (arr) {
+		function arrSum (total, num) {
+		  return total + num;
+		}
+		return arr.reduce(arrSum);
+	  }
+
       if (pcaDataHasChanged) {
         traces = [];
         let taTApcadata = textareaToArray("pcadata");
@@ -469,6 +511,17 @@ https://github.com/vahaduo/
         dimY = 2;
         updateXYPC();
         dimensions = taTApcadata.lines[0].length - 1;
+        let labels = [], labelsOnly = [], labelsGroup = [];
+        for (let i = taTApcadata.lines.length - 1; i > -1; i--) {
+        	if (taTApcadata.lines[i][0].substr(0,6) == 'label@') {
+        		taTApcadata.lines[i][0] = taTApcadata.lines[i][0].substr(6);
+        		labels.push(taTApcadata.lines[i].slice());
+        	}
+        	if (taTApcadata.lines[i][0].substr(0,10) == 'labelonly@') {
+        		taTApcadata.lines[i][0] = taTApcadata.lines[i][0].substr(10);
+        		labelsOnly.push((taTApcadata.lines.splice(i, 1))[0]);
+        	}
+        }
         taTApcadata.lines.sort(function(a, b) {
           return a[0].localeCompare(b[0]);
         });
@@ -483,6 +536,42 @@ https://github.com/vahaduo/
           newTrace.x = newTrace.storePCAdata[0];
           newTrace.y = newTrace.storePCAdata[1];
           traces.push(newTrace);
+        }
+        let groupTextTrace = new trace("Group Labels", 0, dimensions);
+        groupTextTrace.mode = "text";
+        groupTextTrace.hoverinfo = "skip";
+        groupTextTrace.textposition = "middle center";
+        groupTextTrace.textfont = {color: "white"};
+        for (let i = traces.length - 1; i > -1; i--) {
+        	let newPoint = [traces[i].name];
+        	for (let j = 0; j < dimensions; j++) {
+        		newPoint.push(getArraySum(traces[i].storePCAdata[j]) / traces[i].storePCAdata[j].length);
+        	}
+        	addToTrace(groupTextTrace, newPoint);
+        }
+        groupTextTrace.x = groupTextTrace.storePCAdata[0];
+        groupTextTrace.y = groupTextTrace.storePCAdata[1];
+        traces.push(groupTextTrace);
+
+        if (labels.length > 0 || labelsOnly.length > 0) {
+	        let textTrace = new trace("Custom Labels", 0, dimensions);
+	        delete textTrace.marker;
+	        textTrace.mode = "text";
+	        textTrace.hoverinfo = "skip";
+	        textTrace.textposition = [];
+	        textTrace.textfont = {color: "white"};
+	        for (let i = labels.length - 1; i > -1; i--) {
+	        	labels[i][0] = "  ◂ " + labels[i][0];
+	        	addToTrace(textTrace, labels[i]);
+	        	textTrace.textposition.push("middle right");
+	        }
+	        for (let i = labelsOnly.length - 1; i > -1; i--) {
+	        	addToTrace(textTrace, labelsOnly[i]);
+	        	textTrace.textposition.push("middle center");
+	        }
+	        textTrace.x = textTrace.storePCAdata[0];
+	        textTrace.y = textTrace.storePCAdata[1];
+	        traces.push(textTrace);
         }
         clearNotification();
         if (taTApcadata.message.length > 0) {
@@ -500,7 +589,7 @@ https://github.com/vahaduo/
         switchIt("y", dimY);
         currentDimY = dimY;
       }
-      Plotly.newPlot('graphDiv', traces , new layout, {showSendToCloud: false, responsive: true});
+      Plotly.newPlot('graphDiv', traces , new layout, plotOptions);
       clearFlip();
     }
     
@@ -533,9 +622,9 @@ https://github.com/vahaduo/
     --><button class="tablink" onclick="openTab('pcaplot', this)">pca&nbsp;plot</button>
   </nav>
   <div id="notification" onclick="clearNotification()"></div>
-  <textarea class="tab tabinput" id="source" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header."></textarea>
-  <textarea class="tab tabinput" id="projected" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header."></textarea>
-  <textarea onchange="hasPCAdataChanged(true)" class="tab tabinput" id="pcadata" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header."></textarea>
+  <textarea class="tab tabinput" id="source" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically."></textarea>
+  <textarea class="tab tabinput" id="projected" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically."></textarea>
+  <textarea onchange="hasPCAdataChanged(true)" class="tab tabinput" id="pcadata" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically."></textarea>
   <div class="tab" id="pcaplot">
     <button id="projectsources" class="buttons buttonpca" onclick="toggleOptions('projectSources', this)">project&nbsp;sources&nbsp;-&nbsp;yes</button><!--
     --><button class="buttons buttonpca" onclick="runPCA()">run&nbsp;pca</button><!--
