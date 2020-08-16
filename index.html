@@ -553,6 +553,21 @@ https://github.com/vahaduo/
         groupTextTrace.y = groupTextTrace.storePCAdata[1];
         traces.push(groupTextTrace);
 
+        let sampleTextTrace = new trace("Sample Labels", 0, dimensions);
+        sampleTextTrace.visible = "legendonly";
+        sampleTextTrace.mode = "text";
+        sampleTextTrace.hoverinfo = "skip";
+        sampleTextTrace.textposition = "middle right";
+        sampleTextTrace.textfont = {color: "white"};
+        for (let i = taTApcadata.lines.length - 1; i > -1; i--) {
+        	let tempLine = taTApcadata.lines[i].slice();
+        	tempLine[0] = "  ◂ " + tempLine[0];
+        	addToTrace(sampleTextTrace, tempLine);
+        }
+        sampleTextTrace.x = sampleTextTrace.storePCAdata[0];
+        sampleTextTrace.y = sampleTextTrace.storePCAdata[1];
+        traces.push(sampleTextTrace);
+
         if (labels.length > 0 || labelsOnly.length > 0) {
 	        let textTrace = new trace("Custom Labels", 0, dimensions);
 	        delete textTrace.marker;
@@ -622,9 +637,9 @@ https://github.com/vahaduo/
     --><button class="tablink" onclick="openTab('pcaplot', this)">pca&nbsp;plot</button>
   </nav>
   <div id="notification" onclick="clearNotification()"></div>
-  <textarea class="tab tabinput" id="source" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically."></textarea>
-  <textarea class="tab tabinput" id="projected" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically."></textarea>
-  <textarea onchange="hasPCAdataChanged(true)" class="tab tabinput" id="pcadata" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically."></textarea>
+  <textarea class="tab tabinput" id="source" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically.&#10; Labels for all samples are added automatically and are placed on a hidden layer."></textarea>
+  <textarea class="tab tabinput" id="projected" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically.&#10; Labels for all samples are added automatically and are placed on a hidden layer."></textarea>
+  <textarea onchange="hasPCAdataChanged(true)" class="tab tabinput" id="pcadata" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically.&#10; Labels for all samples are added automatically and are placed on a hidden layer."></textarea>
   <div class="tab" id="pcaplot">
     <button id="projectsources" class="buttons buttonpca" onclick="toggleOptions('projectSources', this)">project&nbsp;sources&nbsp;-&nbsp;yes</button><!--
     --><button class="buttons buttonpca" onclick="runPCA()">run&nbsp;pca</button><!--
