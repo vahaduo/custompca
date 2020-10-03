@@ -27,6 +27,22 @@ https://github.com/vahaduo/
       padding-left: 0.4em;
       box-sizing: border-box;
     }
+    header {
+      float: right;
+      text-align: right;
+      padding-left: 0 0.4em 0 0.4em;
+      margin: 0 1em 0 1em;
+      display: inline-block;
+      color: #9d9d9d;
+    }
+    header div {
+      text-transform: uppercase;
+      font-size: 0.5em;
+    }
+    a {
+      color: inherit;
+      text-decoration: inherit;
+    }
     button {
       outline: none;
       border: none;
@@ -107,17 +123,23 @@ https://github.com/vahaduo/
       margin-top: 0.7em;
     }
     .js-plotly-plot {
-      box-shadow: 0 -0.2em 0.2em #666, 0 1em #222;
-      background-color: #222;
+      box-shadow: 0 -0.2em 0.2em #666, 0 1em #181818;
+      background-color: #181818;
     }
     .modebar {
       right: 1em !important;
     }
+    .hovertext {
+      fill-opacity: 0.9;
+    }
     .buttonpca {
-      min-width: 15em;
+      min-width: 5em;
       margin: 1em 0 0 1em;
     }
-    .buttongroup {
+    #projectsources {
+      min-width: 13em;
+    }
+    .buttongroup, #to3d {
       display: none;
     }
     .pcleft {
@@ -128,45 +150,77 @@ https://github.com/vahaduo/
       width: 5em;
       margin: 1em 0 0 0;
     }
+    .plusminus {
+      width: 3em;
+      margin: 1em 0 0 0;
+    }
   </style>
   <script>
-    let projectSources = true, flipX = false, flipY = false,
-      dimensions = 2, dimX = 1, dimY = 2, pcaDataHasChanged = true, 
-      traces = [], currentDimX = dimX, currentDimY = dimY;
+    const plotlyMarkers = [
+      [0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],
+      [10,6],[11,6],[12,6],[13,6],[14,6],[15,6],[16,6],[17,6],[18,6],[19,6],
+      [20,6],[21,6],[22,6],[23,6],[24,6],[25,6],[26,6],[27,6],/*[28,6],*/[29,6],
+      /*[30,6],*/[31,6],/*[32,6],[33,6],[34,6],[35,6],[36,6],[37,6],[38,6],[39,6],
+      [40,6],[41,6],[42,6],[43,6],[44,6],*/[100,6],[101,6],[102,6],[103,6],[104,6],
+      [105,6],[106,6],[107,6],[108,6],[109,6],[110,6],[111,6],[112,6],[113,6],[114,6],
+      [115,6],[116,6],[117,6],[118,6],[119,6],[120,6],[121,6],[122,6],[123,6],[124,6],
+      [125,6],[126,6],[127,6],[128,6],[129,6],[130,6],[131,6],[132,6],[133,6],[134,6],
+      [135,6],[136,6],[137,6],[138,6],[139,6],[140,6],[141,6],[142,6],[143,6],[144,6],
+      [200,6],[201,6],[202,6],[203,6],[204,6],[205,6],[206,6],[207,6],[208,6],[209,6],
+      [210,6],[211,6],[212,6],[213,6],[214,6],[215,6],[216,6],[217,6],[218,6],[219,6],
+      [220,6],[221,6],[222,6],[223,6],[224,6],/*[236,6],*/[300,6],[301,6],[302,6],[303,6],
+      [304,6],[305,6],[306,6],[307,6],[308,6],[309,6],[310,6],[311,6],[312,6],[313,6],
+      [314,6],[315,6],[316,6],[317,6],[318,6],[319,6],[320,6],[321,6],[322,6],[323,6],
+      [324,6],[336,6]
+    ];
+    let plotlyMarkers3dGecko = [
+      ["circle", 2], ["square", 2], ["diamond", 3],
+      ["circle-open", 3], ["square-open", 3], ["diamond-open", 4],
+      /*["cross", 4],*/ ["x", 3]
+    ],
+    plotlyMarkers3d = [
+      ["circle", 4], ["square", 4], ["diamond", 3],
+      ["circle-open", 5], ["square-open", 4], ["diamond-open", 4],
+      /*["cross", 4],*/ ["x", 2]
+    ];
+    let projectSources = true, flipX = false, flipY = false, flipZ = false,
+      dimensions = 2, dimX = 1, dimY = 2, dimZ = 2, pcaDataHasChanged = true, 
+      traces = [], currentDimX = dimX, currentDimY = dimY, currentDimZ = dimZ,
+      active3d = false, datarevision = 0, layout2d = {}, layout3d = {};
     const tabNames = {"source": "source", "projected": "projected", "pcadata": "pca data"},
-    	plotOptions = {
-    		showSendToCloud: false,
-    		responsive: true,
-    		toImageButtonOptions: {
-				format: 'png',
-				filename: 'Vahaduo_Custom_PCA',
-				height: 1200,
-				width: 1600,
-				scale: 1
-			},
-			modeBarButtonsToAdd: [
-			  {
-			    name: 'Download plot as png (custom size)',
-			    icon: Plotly.Icons.camera,
-			    click: function(gd) {
-			    	let scene = document.getElementById('graphDiv'), 
-			    		saveSize = prompt("Please enter plot size in px (width x height)", Math.round(scene.clientWidth) + " x " + Math.round(scene.clientHeight));
-			    	if (saveSize != null) {
-			    		saveSize = saveSize.split("x");
-			    		if (saveSize.length == 2) {
-				    		saveSize[0] = Number(saveSize[0].trim());
-				    		saveSize[1] = Number(saveSize[1].trim());
-				    		if (Number.isInteger(saveSize[0]) &&  saveSize[0] > 1 && Number.isInteger(saveSize[1]) &&  saveSize[1] > 1 ) {
-				    			Plotly.downloadImage('graphDiv',{format:'png',height:saveSize[1],width:saveSize[0],filename:'Vahaduo_Custom_PCA',scale:1});
-				    			return;
-				    		}
-			    		}
-			    		alert("Input not in 'width x height' format.");
-			    	}
-			    }
-			  }
-			],
-    	};
+      plotOptions = {
+        showSendToCloud: false,
+        responsive: true,
+        toImageButtonOptions: {
+          format: 'png',
+          filename: 'Vahaduo_Custom_PCA',
+          height: 1200,
+          width: 1600,
+          scale: 1
+        },
+        modeBarButtonsToAdd: [
+          {
+            name: 'Download plot as png (custom size)',
+            icon: Plotly.Icons.camera,
+            click: function(gd) {
+              let scene = document.getElementById('graphDiv'), 
+                saveSize = prompt("Please enter plot size in px (width x height)", Math.round(scene.clientWidth) + " x " + Math.round(scene.clientHeight));
+              if (saveSize != null) {
+                saveSize = saveSize.split("x");
+                if (saveSize.length == 2) {
+                  saveSize[0] = Number(saveSize[0].trim());
+                  saveSize[1] = Number(saveSize[1].trim());
+                  if (Number.isInteger(saveSize[0]) &&  saveSize[0] > 1 && Number.isInteger(saveSize[1]) &&  saveSize[1] > 1 ) {
+                    Plotly.downloadImage('graphDiv',{format:'png',height:saveSize[1],width:saveSize[0],filename:'Vahaduo_Custom_PCA',scale:1});
+                    return;
+                  }
+                }
+                alert("Input not in 'width x height' format.");
+              }
+            }
+          }
+        ],
+      };
     
     function showNotification (message, error = 0) {
       const notification = document.getElementById("notification");
@@ -191,14 +245,7 @@ https://github.com/vahaduo/
     function updateXYPC () {
       document.getElementById("optX").firstElementChild.innerHTML = "X:&nbsp;PC" + dimX;
       document.getElementById("optY").firstElementChild.innerHTML = "Y:&nbsp;PC" + dimY;
-    }
-    
-    function switchXYPC () {
-      if (dimX == 1) {
-        dimX = 2; dimY = 1;
-      } else {
-        dimX = 1; dimY = 2;
-      }
+      document.getElementById("optZ").firstElementChild.innerHTML = "Z:&nbsp;PC" + dimZ;
     }
     
     function toggleOptions (option, elmnt) {
@@ -225,28 +272,32 @@ https://github.com/vahaduo/
           toggleOption(flipY, "flip", ["", "&nbsp;&#10004;"]);
           flipY = !flipY;
           break;
+        case "flipZ":
+          toggleOption(flipZ, "flip", ["", "&nbsp;&#10004;"]);
+          flipZ = !flipZ;
+          break;
         case "incDimX":
           dimX == dimensions ? dimX = 1 : dimX++;
-          if (dimY == dimX) dimX == dimensions ? dimX = 1 : dimX++;
-          if (dimensions == 2) switchXYPC();
           updateXYPC();
           break;
         case "decDimX":
           dimX == 1 ? dimX = dimensions : dimX--;
-          if (dimY == dimX) dimX == 1 ? dimX = dimensions : dimX--;
-          if (dimensions == 2) switchXYPC();
           updateXYPC();
           break;
         case "incDimY":
           dimY == dimensions ? dimY = 1 : dimY++;
-          if (dimY == dimX) dimY == dimensions ? dimY = 1 : dimY++;
-          if (dimensions == 2) switchXYPC();
           updateXYPC();
           break;
         case "decDimY":
           dimY == 1 ? dimY = dimensions : dimY--;
-          if (dimY == dimX) dimY == 1 ? dimY = dimensions : dimY--;
-          if (dimensions == 2) switchXYPC();
+          updateXYPC();
+          break;
+        case "incDimZ":
+          dimZ == dimensions ? dimZ = 1 : dimZ++;
+          updateXYPC();
+          break;
+        case "decDimZ":
+          dimZ == 1 ? dimZ = dimensions : dimZ--;
           updateXYPC();
           break;
       }
@@ -257,7 +308,7 @@ https://github.com/vahaduo/
         text4, diff34, lines, columnNum, result = {lines: [], message: "", errors: 0};
       const textarea = document.getElementById(textareaId);
       textareaId = tabNames[textareaId].toUpperCase();
-      text1 = textarea.value.trim().replace(/\r\n/g,"\n").replace(/\"/g,"").replace(/\</g, "&lt;").replace(/\>/g, "&gt;");
+      text1 = textarea.value.trim().replace(/\r\n/g,"\n").replace(/^\/\/.*\n?/gm, '').trim().replace(/\"/g,"").replace(/\</g, "&lt;").replace(/\>/g, "&gt;");
       text2 = text1.replace(/[^\S\n]/g, "");
       diff12 = text1.length - text2.length;
       if (diff12 > 0) {
@@ -367,14 +418,15 @@ https://github.com/vahaduo/
         if (pca.U.columns > 1 && !isNaN(variance[0]) && variance[0] < 1) {
           for (i = 0, n = variance.length; i < n; i++) {
             totalVariance += variance[i];
-            if (totalVariance < 0.98) {
+            if (totalVariance < 0.98 && variance[i] > 0.01) {
               componentsNum++;
             } else {
               break;
             }
           }
           if (componentsNum > 1) {
-            const projected = pca.predict(projectedArray);
+            const projected = pca.predict(projectedArray), 
+              cumulativeVariance = pca.getCumulativeVariance();
             let msg = "", j;
             for (i = 0, n = projected.rows; i < n; i++) {
               msg += projectedNames[i];
@@ -383,8 +435,25 @@ https://github.com/vahaduo/
               }
               msg += "\n";
             }
+            msg += "//\n// PC, Explained variance, Cumulative variance\n";
+            for (i = 0; i < componentsNum; i++) {
+              msg += "// PC" + (i + 1) + ", " + (variance[i] * 100).toFixed(1) + "%, " + (cumulativeVariance[i] * 100).toFixed(1) + "%\n"; 
+            }
+            msg += "//\n";
+
             document.getElementById("pcadata").value = msg;
             hasPCAdataChanged(true);
+            let rpcabutton = document.getElementById("runpca");
+            rpcabutton.style.color = "lime";
+            function restyle () {
+              rpcabutton.style.transition = "all 1s"
+              rpcabutton.style.color = "#dadada";
+            }
+            function restyle2 () {
+              rpcabutton.style.transition = "inherit";
+            }
+            setTimeout(restyle, 200);
+            setTimeout(restyle2, 1000);
           } else {
             message += "ERROR! Not enough data to perform PCA. ";
             showNotification(message, 1);
@@ -405,59 +474,125 @@ https://github.com/vahaduo/
     function setOptDisp (display) {
       document.getElementById("optX").style.display = display;
       document.getElementById("optY").style.display = display;
+      if (display == "none") {
+        document.getElementById("to3d").style.display = display;
+        to3d(true);  
+      }
+      if (display == "inline-block" && dimensions > 2) {
+        document.getElementById("to3d").style.display = display;
+      }
     }
     
+    function to3d (reset = false) {
+      if (active3d || reset) {
+        active3d = false;
+        document.getElementById("optZ").style.display = "none";
+        document.getElementById("to3d").innerHTML = "3d";
+        if (!reset) traceType("scatter");
+      } else {
+        active3d = true;
+        document.getElementById("optZ").style.display = "inline-block";
+        document.getElementById("to3d").innerHTML = "2d";
+        traceType("scatter3d");
+        if (dimensions > 2 && (dimZ == dimX || dimZ == dimY)) {
+          for (let i = 1; i < dimensions + 1; i++) {
+            if (i != dimX && i != dimY) {
+              dimZ = i;
+              updateXYPC();
+              break;
+            }
+          }
+        }
+      }
+      if (!reset) {
+        plotPCA(true);
+      }
+    }
+
+    function traceType (type) {
+      for (let i = 0; i < traces.length; i++) {
+        traces[i].type = type;
+        if (type == "scatter" && traces[i].mode == "markers") {
+          traces[i].marker = traces[i].marker2d;
+        } else if (traces[i].mode == "markers") {
+          traces[i].marker = traces[i].marker3d;
+        }
+      }
+    }
+
     function hasPCAdataChanged(yesno) {
       pcaDataHasChanged = yesno;
       setOptDisp(yesno ? "none" : "inline-block");
     }
     
-    function plotPCA () {
+    function plotPCA (switch2d3d = false) {
       let i, j, m, n, currentName;
-      const plotlyMarkers = [
-        [0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],
-        [10,6],[11,6],[12,6],[13,6],[14,6],[15,6],[16,6],[17,6],[18,6],[19,6],
-        [20,6],[21,6],[22,6],[23,6],[24,6],[25,6],[26,6],[27,6],/*[28,6],*/[29,6],
-        /*[30,6],*/[31,6],/*[32,6],[33,6],[34,6],[35,6],[36,6],[37,6],[38,6],[39,6],
-        [40,6],[41,6],[42,6],[43,6],[44,6],*/[100,6],[101,6],[102,6],[103,6],[104,6],
-        [105,6],[106,6],[107,6],[108,6],[109,6],[110,6],[111,6],[112,6],[113,6],[114,6],
-        [115,6],[116,6],[117,6],[118,6],[119,6],[120,6],[121,6],[122,6],[123,6],[124,6],
-        [125,6],[126,6],[127,6],[128,6],[129,6],[130,6],[131,6],[132,6],[133,6],[134,6],
-        [135,6],[136,6],[137,6],[138,6],[139,6],[140,6],[141,6],[142,6],[143,6],[144,6],
-        [200,6],[201,6],[202,6],[203,6],[204,6],[205,6],[206,6],[207,6],[208,6],[209,6],
-        [210,6],[211,6],[212,6],[213,6],[214,6],[215,6],[216,6],[217,6],[218,6],[219,6],
-        [220,6],[221,6],[222,6],[223,6],[224,6],/*[236,6],*/[300,6],[301,6],[302,6],[303,6],
-        [304,6],[305,6],[306,6],[307,6],[308,6],[309,6],[310,6],[311,6],[312,6],[313,6],
-        [314,6],[315,6],[316,6],[317,6],[318,6],[319,6],[320,6],[321,6],[322,6],[323,6],
-        [324,6],[336,6]
-      ];
       
       function clearFlip () {
         if (flipX) document.getElementById("flipX").click();
         if (flipY) document.getElementById("flipY").click();
+        if (flipZ) document.getElementById("flipZ").click();
       }
       
-      function layout () {
+      function newLayout2d () {
         this.xaxis = { zeroline: false };
         this.yaxis = { zeroline: false };
         this.hovermode = "closest";
         this.dragmode = "pan";
         this.legend = { font: { size: 10, color: "#ddd" } };
-        this.paper_bgcolor = "#222";
-        this.plot_bgcolor = "#222";
-        this.font = { size: 10, color: "#808080" };
-        this.margin = { l: 50, t: 20, b:20 };
+        this.paper_bgcolor = "#181818";
+        this.plot_bgcolor = "#181818";
+        this.font = { size: 10, color: "#444" };
+        this.margin = { l: 50, t: 20, b: 20 };
+        this.datarevision = datarevision;
       }
       
-      function trace (name, marker, dimensions) {
+      function newLayout3d () {
+        this.xaxis = { zeroline: false };
+        this.yaxis = { zeroline: false };
+        this.zaxis = { zeroline: false };
+        this.hovermode = "closest";
+        this.dragmode = "turntable";
+        this.legend = { font: { size: 10, color: "#ddd" }, itemsizing: "constant" };
+        this.margin = { l: 10, t: 20, b: 10 };
+        this.paper_bgcolor = "#181818";
+        this.plot_bgcolor = "#181818";
+        this.scene = {
+          annotations: [],
+          aspectmode: "data",
+          bgcolor: "rgba(0,0,0,0)",
+          xaxis: {
+            color: "#444"
+          },
+          yaxis: {
+            color: "#444"
+          },
+          zaxis: {
+            color: "#444"
+          },
+          camera: { 
+            projection: {
+              type: "perspective"
+            }
+          }
+        }
+        this.datarevision = datarevision;
+      }
+
+      function trace (name, dimensions, marker = false, marker3d = false) {
         this.text = [];
         this.x = [];
         this.y = [];
+        this.z = [];
         this.mode = "markers";
         this.type = "scatter";
-        this.hoverinfo = "text+name";
+        this.hoverinfo = "text";
         this.name = name;
-        this.marker = { size: marker[1], symbol: marker[0], opacity: 1 };
+        if (marker != false) {
+          this.marker = { size: marker[1], symbol: marker[0], opacity: 0.75 };
+          this.marker2d = { size: marker[1], symbol: marker[0], opacity: 0.75 };
+          this.marker3d = { size: marker3d[1], symbol: marker3d[0], opacity: 0.75 };
+        }
         this.storePCAdata = Array(dimensions);
         for (let i = 0; i < dimensions; i++) {
           this.storePCAdata[i] = [];
@@ -488,15 +623,15 @@ https://github.com/vahaduo/
         }
       }
 
-	  function getArraySum (arr) {
-		function arrSum (total, num) {
-		  return total + num;
-		}
-		return arr.reduce(arrSum);
-	  }
+      function getArraySum (arr) {
+        function arrSum (total, num) {
+          return total + num;
+        }
+        return arr.reduce(arrSum);
+      }
 
       if (pcaDataHasChanged) {
-        traces = [];
+        traces = [], layout = {}, layout3d = {};
         let taTApcadata = textareaToArray("pcadata");
         if (taTApcadata.errors > 0) {
           showNotification(taTApcadata.message, 1);
@@ -505,29 +640,31 @@ https://github.com/vahaduo/
           document.getElementById("graphDiv").classList.remove("js-plotly-plot");
           return;
         }
-        setOptDisp("inline-block");
         clearFlip();
         dimX = 1;
         dimY = 2;
+        dimZ = 2;
         updateXYPC();
         dimensions = taTApcadata.lines[0].length - 1;
+        setOptDisp("inline-block");
         let labels = [], labelsOnly = [], labelsGroup = [];
         for (let i = taTApcadata.lines.length - 1; i > -1; i--) {
-        	if (taTApcadata.lines[i][0].substr(0,6) == 'label@') {
-        		taTApcadata.lines[i][0] = taTApcadata.lines[i][0].substr(6);
-        		labels.push(taTApcadata.lines[i].slice());
-        	}
-        	if (taTApcadata.lines[i][0].substr(0,10) == 'labelonly@') {
-        		taTApcadata.lines[i][0] = taTApcadata.lines[i][0].substr(10);
-        		labelsOnly.push((taTApcadata.lines.splice(i, 1))[0]);
-        	}
+          if (taTApcadata.lines[i][0].substr(0,6) == 'label@') {
+            taTApcadata.lines[i][0] = taTApcadata.lines[i][0].substr(6);
+            labels.push(taTApcadata.lines[i].slice());
+          }
+          if (taTApcadata.lines[i][0].substr(0,10) == 'labelonly@') {
+            taTApcadata.lines[i][0] = taTApcadata.lines[i][0].substr(10);
+            labelsOnly.push((taTApcadata.lines.splice(i, 1))[0]);
+          }
         }
         taTApcadata.lines.sort(function(a, b) {
           return a[0].localeCompare(b[0]);
         });
-        for (i = 0, n = taTApcadata.lines.length, j = 0, m = plotlyMarkers.length; i < n; i++, j++) {
+        for (i = 0, n = taTApcadata.lines.length, j = 0, k = 0, l = plotlyMarkers3d.length, m = plotlyMarkers.length; i < n; i++, j++, k++) {
           if (j == m) j = 0;
-          let newTrace = new trace(taTApcadata.lines[i][0].split(":")[0], plotlyMarkers[j], dimensions);
+          if (k == l) k = 0;
+          let newTrace = new trace(taTApcadata.lines[i][0].split(":")[0], dimensions, plotlyMarkers[j], plotlyMarkers3d[k]);
           addToTrace(newTrace, taTApcadata.lines[i]);
           while (i + 1 < n && newTrace.name == taTApcadata.lines[i + 1][0].split(":")[0]) {
             i++;
@@ -535,67 +672,90 @@ https://github.com/vahaduo/
           }
           newTrace.x = newTrace.storePCAdata[0];
           newTrace.y = newTrace.storePCAdata[1];
+          newTrace.z = newTrace.storePCAdata[1];
           traces.push(newTrace);
         }
-        let groupTextTrace = new trace("Group Labels", 0, dimensions);
+        let groupTextTrace = new trace("Group Labels", dimensions);
         groupTextTrace.mode = "text";
         groupTextTrace.hoverinfo = "skip";
         groupTextTrace.textposition = "middle center";
-        groupTextTrace.textfont = {color: "white"};
+        // groupTextTrace.textposition = [];
+        groupTextTrace.textfont = {color: "#eee"};
         for (let i = traces.length - 1; i > -1; i--) {
-        	let newPoint = [traces[i].name];
-        	for (let j = 0; j < dimensions; j++) {
-        		newPoint.push(getArraySum(traces[i].storePCAdata[j]) / traces[i].storePCAdata[j].length);
-        	}
-        	addToTrace(groupTextTrace, newPoint);
+          let newPoint = [traces[i].name];
+          for (let j = 0; j < dimensions; j++) {
+            newPoint.push(getArraySum(traces[i].storePCAdata[j]) / traces[i].storePCAdata[j].length);
+          }
+          /*if (traces[i].storePCAdata[0].length > 1) {
+            groupTextTrace.textposition.push("middle center");
+          } else {
+            groupTextTrace.textposition.push("top center");
+          }*/
+          addToTrace(groupTextTrace, newPoint);
         }
         groupTextTrace.x = groupTextTrace.storePCAdata[0];
         groupTextTrace.y = groupTextTrace.storePCAdata[1];
+        groupTextTrace.z = groupTextTrace.storePCAdata[1];
         traces.push(groupTextTrace);
 
-        let sampleTextTrace = new trace("Sample Labels", 0, dimensions);
+        let sampleTextTrace = new trace("Sample Labels", dimensions);
         sampleTextTrace.visible = "legendonly";
         sampleTextTrace.mode = "text";
         sampleTextTrace.hoverinfo = "skip";
         sampleTextTrace.textposition = "middle right";
-        sampleTextTrace.textfont = {color: "white"};
+        sampleTextTrace.textfont = {color: "#eee"};
         for (let i = taTApcadata.lines.length - 1; i > -1; i--) {
-        	let tempLine = taTApcadata.lines[i].slice();
-        	tempLine[0] = "  ◂ " + tempLine[0];
-        	addToTrace(sampleTextTrace, tempLine);
+          let tempLine = taTApcadata.lines[i].slice();
+          tempLine[0] = "  ◂ " + tempLine[0];
+          addToTrace(sampleTextTrace, tempLine);
         }
         sampleTextTrace.x = sampleTextTrace.storePCAdata[0];
         sampleTextTrace.y = sampleTextTrace.storePCAdata[1];
+        sampleTextTrace.z = sampleTextTrace.storePCAdata[1];
         traces.push(sampleTextTrace);
 
-        if (labels.length > 0 || labelsOnly.length > 0) {
-	        let textTrace = new trace("Custom Labels", 0, dimensions);
-	        delete textTrace.marker;
-	        textTrace.mode = "text";
-	        textTrace.hoverinfo = "skip";
-	        textTrace.textposition = [];
-	        textTrace.textfont = {color: "white"};
-	        for (let i = labels.length - 1; i > -1; i--) {
-	        	labels[i][0] = "  ◂ " + labels[i][0];
-	        	addToTrace(textTrace, labels[i]);
-	        	textTrace.textposition.push("middle right");
-	        }
-	        for (let i = labelsOnly.length - 1; i > -1; i--) {
-	        	addToTrace(textTrace, labelsOnly[i]);
-	        	textTrace.textposition.push("middle center");
-	        }
-	        textTrace.x = textTrace.storePCAdata[0];
-	        textTrace.y = textTrace.storePCAdata[1];
-	        traces.push(textTrace);
+        if (labelsOnly.length > 0) {
+          let textTrace = new trace("Custom Group Labels", dimensions);
+          textTrace.mode = "text";
+          textTrace.hoverinfo = "skip";
+          textTrace.textposition = [];
+          textTrace.textfont = {color: "#eee"};
+          textTrace.textposition = "middle center";
+          for (let i = labelsOnly.length - 1; i > -1; i--) {
+            addToTrace(textTrace, labelsOnly[i]);
+          }
+          textTrace.x = textTrace.storePCAdata[0];
+          textTrace.y = textTrace.storePCAdata[1];
+          textTrace.z = textTrace.storePCAdata[1];
+          traces.push(textTrace);
+        }
+        if (labels.length > 0) {
+          let textTrace = new trace("Custom Sample Labels", dimensions);
+          textTrace.mode = "text";
+          textTrace.hoverinfo = "skip";
+          textTrace.textposition = [];
+          textTrace.textfont = {color: "#eee"};
+          textTrace.textposition = "middle right";
+          for (let i = labels.length - 1; i > -1; i--) {
+            labels[i][0] = "  ◂ " + labels[i][0];
+            addToTrace(textTrace, labels[i]);
+          }
+          textTrace.x = textTrace.storePCAdata[0];
+          textTrace.y = textTrace.storePCAdata[1];
+          textTrace.z = textTrace.storePCAdata[1];
+          traces.push(textTrace);
         }
         clearNotification();
         if (taTApcadata.message.length > 0) {
           showNotification(taTApcadata.message);
         }
+        layout2d = new newLayout2d;
+        layout3d = new newLayout3d;
         hasPCAdataChanged(false);
       }
       if (flipX) flipIt(dimX);
       if (flipY) flipIt(dimY);
+      if (flipZ) flipIt(dimZ);
       if (currentDimX != dimX) {
         switchIt("x", dimX);
         currentDimX = dimX;
@@ -604,7 +764,18 @@ https://github.com/vahaduo/
         switchIt("y", dimY);
         currentDimY = dimY;
       }
-      Plotly.newPlot('graphDiv', traces , new layout, plotOptions);
+      if (currentDimZ != dimZ) {
+        switchIt("z", dimZ);
+        currentDimZ = dimZ;
+      }
+      datarevision++;
+      layout2d.datarevision = datarevision;
+      layout3d.datarevision = datarevision;
+      if (!switch2d3d) {
+        Plotly.react('graphDiv', traces , active3d ? layout3d : layout2d, plotOptions);
+      } else {
+        Plotly.newPlot('graphDiv', traces , active3d ? layout3d : layout2d, plotOptions);
+      }
       clearFlip();
     }
     
@@ -624,6 +795,10 @@ https://github.com/vahaduo/
     }
     
     function initialize () {
+      if (navigator.userAgent.indexOf('Gecko') > -1 
+          && navigator.userAgent.indexOf('like Gecko') < 0) {
+        plotlyMarkers3d = plotlyMarkers3dGecko;
+      };
       document.getElementById("defaulttab").click(); 
     }
     
@@ -631,6 +806,7 @@ https://github.com/vahaduo/
 </head>
 <body>
   <nav>
+    <header><a href="https://vahaduo.github.io" target="_blank" title="Go to Vahaduo App Gallery">Vahaduo<div>Custom PCA</div></a></header>
     <button class="tablink" onclick="openTab('source', this)" id="defaulttab">source</button><!--
     --><button class="tablink" onclick="openTab('projected', this)">projected</button><!--
     --><button class="tablink" onclick="openTab('pcadata', this)">pca&nbsp;data</button><!--
@@ -642,19 +818,26 @@ https://github.com/vahaduo/
   <textarea onchange="hasPCAdataChanged(true)" class="tab tabinput" id="pcadata" spellcheck="false" placeholder=" Paste data here. Comma-separated values, no header.&#10; Name format - Group_Label_Level_N:Group_Label_Level_2:Group_Label_Level_1:Sample_ID&#10; Prepend the sample name with label@ to add a label to the point.&#10; Prepend the sample name with labelonly@ to add a label to the plot without adding the point.&#10; Labels for top level groups are added automatically.&#10; Labels for all samples are added automatically and are placed on a hidden layer."></textarea>
   <div class="tab" id="pcaplot">
     <button id="projectsources" class="buttons buttonpca" onclick="toggleOptions('projectSources', this)">project&nbsp;sources&nbsp;-&nbsp;yes</button><!--
-    --><button class="buttons buttonpca" onclick="runPCA()">run&nbsp;pca</button><!--
+    --><button id="runpca" class="buttons buttonpca" onclick="runPCA()">run&nbsp;pca</button><!--
       --><div id="optX" class="buttongroup"><!--
         --><button class="buttons pcleft" onclick="" disabled="true">X:&nbsp;PC1</button><!--
         --><button id="flipX" class="buttons pcright" onclick="toggleOptions('flipX', this)">flip</button><!--
-        --><button class="buttons pcright" onclick="toggleOptions('decDimX', this)">-</button><!--
-        --><button class="buttons pcright" onclick="toggleOptions('incDimX', this)">+</button><!--
+        --><button class="buttons plusminus" onclick="toggleOptions('decDimX', this)">-</button><!--
+        --><button class="buttons plusminus" onclick="toggleOptions('incDimX', this)">+</button><!--
       --></div><!--
         --><div id="optY" class="buttongroup"><!--
         --><button class="buttons pcleft" onclick="" disabled="true">Y:&nbsp;PC2</button><!--
         --><button id="flipY" class="buttons pcright" onclick="toggleOptions('flipY', this)">flip</button><!--
-        --><button class="buttons pcright" onclick="toggleOptions('decDimY', this)">-</button><!--
-        --><button class="buttons pcright" onclick="toggleOptions('incDimY', this)">+</button><!--
+        --><button class="buttons plusminus" onclick="toggleOptions('decDimY', this)">-</button><!--
+        --><button class="buttons plusminus" onclick="toggleOptions('incDimY', this)">+</button><!--
       --></div><!--
+      --><div id="optZ" class="buttongroup"><!--
+        --><button class="buttons pcleft" onclick="" disabled="true">Z:&nbsp;PC2</button><!--
+        --><button id="flipZ" class="buttons pcright" onclick="toggleOptions('flipZ', this)">flip</button><!--
+        --><button class="buttons plusminus" onclick="toggleOptions('decDimZ', this)">-</button><!--
+        --><button class="buttons plusminus" onclick="toggleOptions('incDimZ', this)">+</button><!--
+      --></div><!--
+    --><button id="to3d" class="buttons buttonpca" onclick="to3d()">3d</button><!--
     --><button class="buttons buttonpca" onclick="plotPCA()">plot&nbsp;pca</button>
     <div id="graphDiv"></div>
   </div>
