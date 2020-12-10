@@ -526,7 +526,7 @@ https://github.com/vahaduo/
     }
     
     function plotPCA (switch2d3d = false) {
-      let i, j, m, n, currentName;
+      let i, j, k, l, m, n, currentName;
       
       function clearFlip () {
         if (flipX) document.getElementById("flipX").click();
@@ -631,7 +631,7 @@ https://github.com/vahaduo/
       }
 
       if (pcaDataHasChanged) {
-        traces = [], layout = {}, layout3d = {};
+        traces = [], layout2d = {}, layout3d = {};
         let taTApcadata = textareaToArray("pcadata");
         if (taTApcadata.errors > 0) {
           showNotification(taTApcadata.message, 1);
